@@ -7,14 +7,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 host_server = os.environ.get('host_server', 'localhost')
-db_server_port = urllib.parse.quote_plus(
-    str(os.environ.get('db_server_port', '5432')))
-# os.environ.get('database_name', 'openpoliceai')
-database_name = 'openpoliceai'
-# urllib.parse.quote_plus(str(os.environ.get('db_username', 'openpoliceai')))
-db_username = 'openpoliceai'
-# urllib.parse.quote_plus(str(os.environ.get('db_password', 'opnepoliceai')))
-db_password = 'openpoliceai'
+db_server_port = os.environ.get('db_server_port', '5432')
+database_name = os.environ.get('database_name', 'openpoliceai')
+db_username = os.environ.get('db_username', 'openpoliceai')
+db_password = os.environ.get('db_password', 'openpoliceai')
 SQLALCHEMY_DATABASE_URL = 'postgresql://{}:{}@{}:{}/{}'.format(
     db_username, db_password, host_server, db_server_port, database_name)
 

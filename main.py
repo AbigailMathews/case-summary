@@ -56,6 +56,17 @@ def read_case(case_id: int, db: Session = Depends(get_db)):
     return db_case
 
 
+@app.get('/cases/{case_id}/summaries', response_model=List[schemas.Summary])
+def get_summaries_for_case(case_id: int, db: Session = Depends(get_db)):
+    db_case = crud.get_case(db, case_id=case_id)
+    if db_case is None:
+        raise HTTPException(
+            status_code=404, detail="Case not found"
+        )
+
+    return db_case.summaries
+
+
 @app.post('/cases/{case_id}/summaries', response_model=schemas.Summary)
 async def create_summary_for_case(case_id: int, db: Session = Depends(get_db)):
     db_case = crud.get_case(db, case_id=case_id)
