@@ -1,8 +1,10 @@
-from typing import Optional
-
-from typing import List
-from fastapi import FastAPI, Depends, HTTPException
+from typing import Optional, List
+from fastapi import FastAPI, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
+
+import openai
+import os
+import json
 
 from config import get_settings, Settings
 import crud
@@ -10,7 +12,11 @@ import models
 import schemas
 from database import SessionLocal, engine
 
+from secrets import OPENAI_API_KEY
+
 models.Base.metadata.create_all(bind=engine)
+
+openai.api_key = OPENAI_API_KEY
 
 app = FastAPI()
 
@@ -24,7 +30,45 @@ def get_db():
 
 
 async def get_new_summary(case: schemas.Case):
-    return "Dummy summary"
+    prompt = """
+    A lawyer receives the following case narrative and needs to create a summary:
+    ###
+    {}
+    ###
+    The lawyer submits the following three-sentence case summary:
+    ###
+    """.format(case.narrative)
+
+    response = openai.Completion.create(
+        engine="davinci",
+        prompt=prompt,
+        temperature=0.4,
+        max_tokens=300,
+        top_p=1.0,
+        frequency_penalty=0.6,
+        presence_penalty=0.2,
+        stop=["\n\n\n"]
+    )
+
+    return response.choices[0]['text']
+
+
+async def get_keywords(case: schemas.Case):
+    response = openai.Completion.create(
+        engine="davinci",
+        prompt="""
+        Text: {}
+        Keywords:
+        """.format(case.narrative),
+        temperature=0.3,
+        stream=true,
+        max_tokens=40,
+        top_p=1,
+        frequency_penalty=0.6,
+        presence_penalty=0.4,
+        stop=["\n\n\n"]
+    )
+    return response.choices[0]['text']
 
 
 @app.get('/')
