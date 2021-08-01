@@ -30,22 +30,15 @@ def get_db():
 
 
 async def get_new_summary(case: schemas.Case):
-    prompt = """
-    A lawyer receives the following case narrative and needs to create a summary:
-    ###
-    {}
-    ###
-    The lawyer submits the following three-sentence case summary:
-    ###
-    """.format(case.narrative)
+    prompt = "I need to summarize the important points of the following story for a legal case: {}\n\nI create a brief, three-sentence summary:".format(
+        case.narrative)
 
     response = openai.Completion.create(
         engine="davinci",
         prompt=prompt,
-        temperature=0.4,
-        max_tokens=300,
-        top_p=1.0,
-        frequency_penalty=0.6,
+        temperature=0.8,
+        max_tokens=80,
+        frequency_penalty=0.2,
         presence_penalty=0.2,
         stop=["\n\n\n"]
     )
@@ -53,19 +46,18 @@ async def get_new_summary(case: schemas.Case):
     return response.choices[0]['text']
 
 
-async def get_keywords(case: schemas.Case):
+async def get_new_keywords(case: schemas.Case):
+    prompt = "A lawyer needs to choose keywords to classify the following text: {}\n\nThe lawyer lists the following 5 keywords:".format(
+        case.narrative)
+
     response = openai.Completion.create(
         engine="davinci",
-        prompt="""
-        Text: {}
-        Keywords:
-        """.format(case.narrative),
+        prompt=prompt,
         temperature=0.3,
-        stream=true,
-        max_tokens=40,
-        top_p=1,
-        frequency_penalty=0.6,
-        presence_penalty=0.4,
+        max_tokens=30,
+        top_p=1.0,
+        frequency_penalty=0.8,
+        presence_penalty=0.0,
         stop=["\n\n\n"]
     )
     return response.choices[0]['text']
@@ -123,6 +115,29 @@ async def create_summary_for_case(case_id: int, db: Session = Depends(get_db)):
     return crud.create_summary(db=db, summary=new_summary, case_id=case_id)
 
 
+@app.get('/cases/{case_id}/keywords', response_model=List[schemas.Keyword])
+def get_keywords_for_case(case_id: int, db: Session = Depends(get_db)):
+    db_case = crud.get_case(db, case_id=case_id)
+    if db_case is None:
+        raise HTTPException(
+            status_code=404, detail="Case not found"
+        )
+
+    return db_case.keywords
+
+
+@app.post('/cases/{case_id}/keywords', response_model=schemas.Keyword)
+async def create_keywords_for_case(case_id: int, db: Session = Depends(get_db)):
+    db_case = crud.get_case(db, case_id=case_id)
+    if db_case is None:
+        raise HTTPException(
+            status_code=404, detail="Case not found, post to /keywords to create new case and keywords")
+
+    new_keywords = await(get_new_keywords(db_case))
+
+    return crud.create_keywords(db=db, keyword=new_keywords, case_id=case_id)
+
+
 @app.post('/summaries', response_model=schemas.Summary)
 async def create_summary(case: schemas.CaseCreate, db: Session = Depends(get_db)):
     db_case = crud.get_case(db, case_id=case.case_id)
@@ -132,3 +147,14 @@ async def create_summary(case: schemas.CaseCreate, db: Session = Depends(get_db)
     new_summary = await(get_new_summary(db_case))
 
     return crud.create_summary(db=db, summary=new_summary, case_id=db_case.case_id)
+
+
+@app.post('/keywords', response_model=schemas.Keyword)
+async def create_keywords(case: schemas.CaseCreate, db: Session = Depends(get_db)):
+    db_case = crud.get_case(db, case_id=case.case_id)
+    if db_case is None:
+        db_case = crud.create_case(db=db, case=case)
+
+    new_keywords = await(get_new_keywords(db_case))
+
+    return crud.create_keywords(db=db, keyword=new_keywords, case_id=db_case.case_id)

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, UnicodeText
+from sqlalchemy import Column, ForeignKey, Integer, UnicodeText, Unicode
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -11,6 +11,7 @@ class Case(Base):
     narrative = Column(UnicodeText)
 
     summaries = relationship('Summary', back_populates='case')
+    keywords = relationship('Keyword', back_populates='case')
 
 
 class Summary(Base):
@@ -21,3 +22,13 @@ class Summary(Base):
     summary = Column(UnicodeText)
 
     case = relationship('Case', back_populates='summaries')
+
+
+class Keyword(Base):
+    __tablename__ = 'keywords'
+
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey('cases.case_id'))
+    keyword = Column(Unicode)
+
+    case = relationship('Case', back_populates='keywords')
